@@ -7,6 +7,7 @@
 
 #include <afmf.hpp>
 
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 
@@ -156,7 +157,7 @@ namespace {
 
         try {
             std::vector<VkSemaphore> waitSemaphores(pPresentInfo->waitSemaphoreCount);
-            std::copy_n(pPresentInfo->pWaitSemaphores, waitSemaphores.size(), waitSemaphores.data());
+            std::copy_n(pPresentInfo->pWaitSemaphores, static_cast<std::ptrdiff_t>(waitSemaphores.size()), waitSemaphores.data());
 
             // present the next frame
             return swapchain.present(deviceInfo, pPresentInfo->pNext,

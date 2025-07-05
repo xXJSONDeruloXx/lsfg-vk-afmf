@@ -1,6 +1,7 @@
 #include "loader/dl.hpp"
 #include "log.hpp"
 
+#include <algorithm>
 #include <vector>
 
 using namespace Loader;
@@ -81,7 +82,7 @@ void* dlopen(const char* filename, int flag) noexcept {
 
     // ALWAYS load the library and ensure it's tracked
     auto* handle = dlopen_ptr(filename, flag);
-    if (handle && std::ranges::find(loaded, handle) == loaded.end())
+    if (handle && std::find(loaded.begin(), loaded.end(), handle) == loaded.end())
         loaded.push_back(handle);
 
     // no need to check for overrides if hooks are disabled
@@ -109,7 +110,7 @@ void* dlsym(void* handle, const char* symbol) noexcept {
         return dlsym_ptr(handle, symbol);
 
     // see if handle is a fake one
-    const auto it = std::ranges::find_if(files, [handle](const auto& pair) {
+    const auto it = std::find_if(files.begin(), files.end(), [handle](const auto& pair) {
         return pair.second.getHandle() == handle;
     });
     if (it == files.end())
@@ -135,14 +136,14 @@ int dlclose(void* handle) noexcept {
         return dlclose_ptr(handle);
 
     // see if the handle is a fake one
-    auto it = std::ranges::find_if(files, [handle](const auto& pair) {
+    auto it = std::find_if(files.begin(), files.end(), [handle](const auto& pair) {
         return pair.second.getHandle() == handle;
     });
     if (it == files.end()) {
         // if the handle is not fake, check if it's still loaded.
         // this is necessary to avoid double closing when
         // one handle was acquired while hooks were disabled
-        auto l_it = std::ranges::find(loaded, handle);
+        auto l_it = std::find(loaded.begin(), loaded.end(), handle);
         if (l_it == loaded.end())
             return 0;
         loaded.erase(l_it);
@@ -156,7 +157,7 @@ int dlclose(void* handle) noexcept {
 
     // similarly, if it is fake, check if it's still loaded
     // before unloading it again.
-    auto l_it = std::ranges::find(loaded, handle);
+    auto l_it = std::find(loaded.begin(), loaded.end(), handle);
     if (l_it == loaded.end()) {
         Log::debug("lsfg-vk(dl): Skipping unload for {} (already unloaded)", file.getFilename());
         return 0;
