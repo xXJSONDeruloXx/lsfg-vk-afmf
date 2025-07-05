@@ -1,6 +1,6 @@
 #include "mini/semaphore.hpp"
 
-#include <lsfg.hpp>
+#include <afmf.hpp>
 
 using namespace Mini;
 
@@ -12,7 +12,7 @@ Semaphore::Semaphore(VkDevice device) {
     VkSemaphore semaphoreHandle{};
     auto res = vkCreateSemaphore(device, &desc, nullptr, &semaphoreHandle);
     if (res != VK_SUCCESS || semaphoreHandle == VK_NULL_HANDLE)
-        throw LSFG::vulkan_error(res, "Unable to create semaphore");
+        throw AFMF::vulkan_error(res, "Unable to create semaphore");
 
     // store semaphore in shared ptr
     this->semaphore = std::shared_ptr<VkSemaphore>(
@@ -36,7 +36,7 @@ Semaphore::Semaphore(VkDevice device, int* fd) {
     VkSemaphore semaphoreHandle{};
     auto res = vkCreateSemaphore(device, &desc, nullptr, &semaphoreHandle);
     if (res != VK_SUCCESS || semaphoreHandle == VK_NULL_HANDLE)
-        throw LSFG::vulkan_error(res, "Unable to create semaphore");
+        throw AFMF::vulkan_error(res, "Unable to create semaphore");
 
     // export semaphore to fd
     auto vkGetSemaphoreFdKHR = reinterpret_cast<PFN_vkGetSemaphoreFdKHR>(
@@ -49,7 +49,7 @@ Semaphore::Semaphore(VkDevice device, int* fd) {
     };
     res = vkGetSemaphoreFdKHR(device, &fdInfo, fd);
     if (res != VK_SUCCESS || *fd < 0)
-        throw LSFG::vulkan_error(res, "Unable to export semaphore to fd");
+        throw AFMF::vulkan_error(res, "Unable to export semaphore to fd");
 
     // store semaphore in shared ptr
     this->semaphore = std::shared_ptr<VkSemaphore>(

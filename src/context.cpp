@@ -154,7 +154,7 @@ VkResult LsContext::present(const Hooks::DeviceInfo& info, const void* pNext, Vk
     };
     auto res = vkQueuePresentKHR(queue, &presentInfo);
     if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
-        throw LSFG::vulkan_error(res, "Failed to present swapchain image");
+        throw AFMF::vulkan_error(res, "Failed to present swapchain image");
 
     this->frameIdx++;
     return res;

@@ -1,6 +1,6 @@
 #include "mini/image.hpp"
 
-#include <lsfg.hpp>
+#include <afmf.hpp>
 
 #include <optional>
 
@@ -34,7 +34,7 @@ Image::Image(VkDevice device, VkPhysicalDevice physicalDevice,
     VkImage imageHandle{};
     auto res = vkCreateImage(device, &desc, nullptr, &imageHandle);
     if (res != VK_SUCCESS || imageHandle == VK_NULL_HANDLE)
-        throw LSFG::vulkan_error(res, "Failed to create Vulkan image");
+        throw AFMF::vulkan_error(res, "Failed to create Vulkan image");
 
     // find memory type
     VkPhysicalDeviceMemoryProperties memProps;
@@ -54,7 +54,7 @@ Image::Image(VkDevice device, VkPhysicalDevice physicalDevice,
         } // NOLINTEND
     }
     if (!memType.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_UNKNOWN, "Unable to find memory type for image");
+        throw AFMF::vulkan_error(VK_ERROR_UNKNOWN, "Unable to find memory type for image");
 #pragma clang diagnostic pop
 
     // allocate and bind memory
@@ -76,11 +76,11 @@ Image::Image(VkDevice device, VkPhysicalDevice physicalDevice,
     VkDeviceMemory memoryHandle{};
     res = vkAllocateMemory(device, &allocInfo, nullptr, &memoryHandle);
     if (res != VK_SUCCESS || memoryHandle == VK_NULL_HANDLE)
-        throw LSFG::vulkan_error(res, "Failed to allocate memory for Vulkan image");
+        throw AFMF::vulkan_error(res, "Failed to allocate memory for Vulkan image");
 
     res = vkBindImageMemory(device, imageHandle, memoryHandle, 0);
     if (res != VK_SUCCESS)
-        throw LSFG::vulkan_error(res, "Failed to bind memory to Vulkan image");
+        throw AFMF::vulkan_error(res, "Failed to bind memory to Vulkan image");
 
     // obtain the sharing fd
     auto vkGetMemoryFdKHR =
@@ -93,7 +93,7 @@ Image::Image(VkDevice device, VkPhysicalDevice physicalDevice,
     };
     res = vkGetMemoryFdKHR(device, &fdInfo, fd);
     if (res != VK_SUCCESS || *fd < 0)
-        throw LSFG::vulkan_error(res, "Failed to obtain sharing fd for Vulkan image");
+        throw AFMF::vulkan_error(res, "Failed to obtain sharing fd for Vulkan image");
 
     // store objects in shared ptr
     this->image = std::shared_ptr<VkImage>(

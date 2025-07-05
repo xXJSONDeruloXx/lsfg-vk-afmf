@@ -1,8 +1,9 @@
 #include <afmf.hpp>
 #include "log.hpp"
 
-#include <FidelityFX/host/ffx_frameinterpolation.h>
-#include <FidelityFX/host/backends/vk/ffx_vk.h>
+// TODO: Enable once FidelityFX SDK is properly integrated
+// #include <FidelityFX/host/ffx_frameinterpolation.h>
+// #include <FidelityFX/host/backends/vk/ffx_vk.h>
 
 #include <unordered_map>
 #include <memory>
@@ -12,7 +13,8 @@ namespace AFMF {
 namespace {
 
 struct AFMFContext {
-    FfxFrameInterpolationContext context;
+    // TODO: Enable once FidelityFX SDK is integrated
+    // FfxFrameInterpolationContext context;
     uint32_t width, height;
     std::vector<int> outputDescriptors;
     int input0, input1;

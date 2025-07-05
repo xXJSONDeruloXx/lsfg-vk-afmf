@@ -1,6 +1,6 @@
 #include "utils.hpp"
 
-#include <lsfg.hpp>
+#include <afmf.hpp>
 
 #include <algorithm>
 #include <optional>
@@ -26,7 +26,7 @@ std::pair<uint32_t, VkQueue> Utils::findQueue(VkDevice device, VkPhysicalDevice 
         }
     }
     if (!idx.has_value())
-        throw LSFG::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "No suitable queue found");
+        throw AFMF::vulkan_error(VK_ERROR_INITIALIZATION_FAILED, "No suitable queue found");
 
     VkQueue queue{};
     vkGetDeviceQueue(device, *idx, 0, &queue);
