@@ -10,13 +10,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SKIP_RPATH ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# subprojects
-# TODO: Re-enable these once dependencies are properly set up
-# include(cmake/FetchDXVK.cmake)
-# include(cmake/FetchPeParse.cmake)
+# FidelityFX SDK Integration
+set(FFX_SDK_PATH "${CMAKE_SOURCE_DIR}/../FidelityFX-SDK")
 
-# TODO: Remove this when AFMF is fully implemented
-# add_subdirectory(lsfg-vk-gen)
+# Check if FidelityFX SDK is available
+if(EXISTS "${FFX_SDK_PATH}/sdk/CMakeLists.txt")
+    set(FFX_API_BACKEND "VK_X64" CACHE STRING "FidelityFX API Backend")
+    set(FFX_BUILD_AS_DLL OFF CACHE BOOL "Build FidelityFX as DLL")
+    
+    # Add FidelityFX SDK as subdirectory
+    add_subdirectory(${FFX_SDK_PATH}/sdk ${CMAKE_BINARY_DIR}/ffx-sdk)
+    set(FFX_SDK_AVAILABLE TRUE)
+    message(STATUS "FidelityFX SDK found and integrated")
+else()
+    set(FFX_SDK_AVAILABLE FALSE)
+    message(WARNING "FidelityFX SDK not found at ${FFX_SDK_PATH} - building with stubs only")
+endif()
 
 # main project
 project(lsfg-vk-afmf
@@ -34,14 +43,24 @@ add_library(lsfg-vk-afmf SHARED ${SOURCES})
 
 target_include_directories(lsfg-vk-afmf
     PRIVATE include
-    # FidelityFX SDK include paths (will be added once SDK is integrated)
-    # PRIVATE ${CMAKE_SOURCE_DIR}/../FidelityFX-SDK/sdk/include
+    # FidelityFX SDK include paths
+    $<$<BOOL:${FFX_SDK_AVAILABLE}>:PRIVATE ${FFX_SDK_PATH}/sdk/include>
     )
+
 target_link_libraries(lsfg-vk-afmf
     PRIVATE vulkan
-    # TODO: Add FidelityFX SDK libraries once integrated
-    # PRIVATE ${FidelityFX_SDK_LIBRARIES}
+    # FidelityFX SDK libraries
+    $<$<BOOL:${FFX_SDK_AVAILABLE}>:PRIVATE ffx_frameinterpolation_x64>
+    $<$<BOOL:${FFX_SDK_AVAILABLE}>:PRIVATE ffx_backend_vk_x64>
     )
+
+# Add FidelityFX compile definitions when available
+if(FFX_SDK_AVAILABLE)
+    target_compile_definitions(lsfg-vk-afmf PRIVATE
+        FFX_SDK_AVAILABLE=1
+        FFX_VK=1
+    )
+endif()
 target_compile_options(lsfg-vk-afmf PRIVATE
     -Weverything
     # disable compat c++ flags

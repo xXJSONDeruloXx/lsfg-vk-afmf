@@ -2,9 +2,9 @@ name: Build LSFG-VK-AFMF
 
 on:
   push:
-    branches: [ main, master, develop, foundation ]
+    branches: [ main, master, develop, destub ]
   pull_request:
-    branches: [ main, master, develop, foundation ]
+    branches: [ main, master, develop, destub ]
   workflow_dispatch:
 
 jobs:
