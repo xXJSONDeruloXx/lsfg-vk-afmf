@@ -14,25 +14,30 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(FFX_SDK_PATH "${CMAKE_SOURCE_DIR}/external/FidelityFX-SDK")
 
 # Check if FidelityFX SDK submodule is available
-if(EXISTS "${FFX_SDK_PATH}/sdk/CMakeLists.txt")
+if(EXISTS "${FFX_SDK_PATH}/PrebuiltSignedDLL")
     message(STATUS "FidelityFX SDK found at: ${FFX_SDK_PATH}")
     
-    # FidelityFX SDK has compatibility issues with Ninja generator due to platform specification
-    # For now, we'll build with stubs when using Ninja, and work toward a proper fix
-    if(CMAKE_GENERATOR STREQUAL "Ninja")
-        message(WARNING "FidelityFX SDK has known issues with Ninja generator - building with stubs for now")
-        message(STATUS "To use FidelityFX SDK, consider using a different generator like 'Unix Makefiles'")
-        set(FFX_SDK_AVAILABLE FALSE)
-    else()
-        # Configure FidelityFX SDK build options for non-Ninja generators
-        set(FFX_API_BACKEND "VK_X64" CACHE STRING "FidelityFX API Backend")
-        set(FFX_BUILD_AS_DLL OFF CACHE BOOL "Build FidelityFX as static library")
+    # Use prebuilt libraries instead of building from source
+    # This avoids CMake generator compatibility issues and reduces build time
+    set(FFX_SDK_AVAILABLE TRUE)
+    
+    # Set up paths for prebuilt libraries
+    if(WIN32)
+        # Windows: Use prebuilt DLLs
+        set(FFX_VK_LIB_PATH "${FFX_SDK_PATH}/PrebuiltSignedDLL/amd_fidelityfx_vk.lib")
+        set(FFX_VK_DLL_PATH "${FFX_SDK_PATH}/PrebuiltSignedDLL/amd_fidelityfx_vk.dll")
         
-        # Add FidelityFX SDK as subdirectory
-        add_subdirectory(${FFX_SDK_PATH}/sdk ${CMAKE_BINARY_DIR}/ffx-sdk)
-        set(FFX_SDK_AVAILABLE TRUE)
-        message(STATUS "FidelityFX SDK integrated successfully")
+        # Alternative: newer FFX API version
+        # set(FFX_VK_LIB_PATH "${FFX_SDK_PATH}/ffx-api/bin/amd_fidelityfx_vk.lib")
+        # set(FFX_VK_DLL_PATH "${FFX_SDK_PATH}/ffx-api/bin/amd_fidelityfx_vk.dll")
+    else()
+        # Linux: We'll need to extract/convert Windows DLLs or build minimal components
+        # For now, fall back to stub implementation on Linux
+        message(WARNING "FidelityFX prebuilt libraries are Windows-only. Using stubs on Linux.")
+        set(FFX_SDK_AVAILABLE FALSE)
     endif()
+    
+    message(STATUS "FidelityFX SDK using prebuilt libraries - no build required")
 else()
     set(FFX_SDK_AVAILABLE FALSE)
     message(FATAL_ERROR "FidelityFX SDK submodule not found at ${FFX_SDK_PATH}. Run: git submodule update --init --recursive")
@@ -60,10 +65,21 @@ target_include_directories(lsfg-vk-afmf
 
 target_link_libraries(lsfg-vk-afmf
     PRIVATE vulkan
-    # FidelityFX SDK libraries
-    $<$<BOOL:${FFX_SDK_AVAILABLE}>:PRIVATE ffx_frameinterpolation_x64>
-    $<$<BOOL:${FFX_SDK_AVAILABLE}>:PRIVATE ffx_backend_vk_x64>
+)
+
+# Link FidelityFX libraries when available
+if(FFX_SDK_AVAILABLE AND WIN32)
+    # Add the prebuilt library
+    target_link_libraries(lsfg-vk-afmf PRIVATE ${FFX_VK_LIB_PATH})
+    
+    # Copy DLL to output directory for runtime
+    add_custom_command(TARGET lsfg-vk-afmf POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${FFX_VK_DLL_PATH}
+        $<TARGET_FILE_DIR:lsfg-vk-afmf>
+        COMMENT "Copying FidelityFX VK DLL to output directory"
     )
+endif()
 
 # Add FidelityFX compile definitions when available
 if(FFX_SDK_AVAILABLE)
