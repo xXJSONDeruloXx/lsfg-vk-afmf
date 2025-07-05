@@ -85,8 +85,7 @@ jobs:
   # Optional job to test FidelityFX SDK integration
   build-with-fidelityfx:
     runs-on: ubuntu-22.04
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[test-ffx]')
-    
+        
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
