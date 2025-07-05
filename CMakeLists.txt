@@ -50,15 +50,15 @@ target_compile_options(lsfg-vk-afmf PRIVATE
     -Wno-c++98-compat-pedantic
     -Wno-c++98-compat
     # disable other flags
-    -Wno-missing-designated-field-initializers
+    -Wno-missing-field-initializers  # Changed from -Wno-missing-designated-field-initializers
     -Wno-shadow         # allow shadowing
     -Wno-switch-enum    # ignore missing cases
     -Wno-switch-default # ignore missing default
     -Wno-padded         # ignore automatic padding
     -Wno-exit-time-destructors # allow globals
     -Wno-global-constructors   # allow globals
-    # required for vulkan
-    -Wno-cast-function-type-strict
+    # required for vulkan - use more compatible flag
+    -Wno-cast-function-type
 )
 
 install(FILES "${CMAKE_BINARY_DIR}/liblsfg-vk-afmf.so" DESTINATION lib)
