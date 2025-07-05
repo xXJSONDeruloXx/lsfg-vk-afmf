@@ -10,37 +10,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SKIP_RPATH ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# FidelityFX SDK Integration
+# FidelityFX Integration Strategy:
+# Instead of building the entire SDK (which has generator compatibility issues),
+# we extract only the frame interpolation components we need and build them directly.
+# This gives us cross-platform support and better build control.
+
 set(FFX_SDK_PATH "${CMAKE_SOURCE_DIR}/external/FidelityFX-SDK")
 
-# Check if FidelityFX SDK submodule is available
-if(EXISTS "${FFX_SDK_PATH}/PrebuiltSignedDLL")
-    message(STATUS "FidelityFX SDK found at: ${FFX_SDK_PATH}")
-    
-    # Use prebuilt libraries instead of building from source
-    # This avoids CMake generator compatibility issues and reduces build time
+# Check if we have access to FidelityFX source code
+if(EXISTS "${FFX_SDK_PATH}/sdk/src/components/frameinterpolation")
+    message(STATUS "FidelityFX SDK source found at: ${FFX_SDK_PATH}")
     set(FFX_SDK_AVAILABLE TRUE)
     
-    # Set up paths for prebuilt libraries
-    if(WIN32)
-        # Windows: Use prebuilt DLLs
-        set(FFX_VK_LIB_PATH "${FFX_SDK_PATH}/PrebuiltSignedDLL/amd_fidelityfx_vk.lib")
-        set(FFX_VK_DLL_PATH "${FFX_SDK_PATH}/PrebuiltSignedDLL/amd_fidelityfx_vk.dll")
-        
-        # Alternative: newer FFX API version
-        # set(FFX_VK_LIB_PATH "${FFX_SDK_PATH}/ffx-api/bin/amd_fidelityfx_vk.lib")
-        # set(FFX_VK_DLL_PATH "${FFX_SDK_PATH}/ffx-api/bin/amd_fidelityfx_vk.dll")
-    else()
-        # Linux: We'll need to extract/convert Windows DLLs or build minimal components
-        # For now, fall back to stub implementation on Linux
-        message(WARNING "FidelityFX prebuilt libraries are Windows-only. Using stubs on Linux.")
-        set(FFX_SDK_AVAILABLE FALSE)
-    endif()
+    # We'll build minimal FidelityFX components ourselves
+    message(STATUS "Building minimal FidelityFX frame interpolation components from source")
     
-    message(STATUS "FidelityFX SDK using prebuilt libraries - no build required")
 else()
     set(FFX_SDK_AVAILABLE FALSE)
-    message(FATAL_ERROR "FidelityFX SDK submodule not found at ${FFX_SDK_PATH}. Run: git submodule update --init --recursive")
+    message(WARNING "FidelityFX SDK submodule not found at ${FFX_SDK_PATH}")
+    message(STATUS "Building with frame interpolation stubs - run: git submodule update --init --recursive")
 endif()
 
 # main project
@@ -67,18 +55,50 @@ target_link_libraries(lsfg-vk-afmf
     PRIVATE vulkan
 )
 
-# Link FidelityFX libraries when available
-if(FFX_SDK_AVAILABLE AND WIN32)
-    # Add the prebuilt library
-    target_link_libraries(lsfg-vk-afmf PRIVATE ${FFX_VK_LIB_PATH})
-    
-    # Copy DLL to output directory for runtime
-    add_custom_command(TARGET lsfg-vk-afmf POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${FFX_VK_DLL_PATH}
-        $<TARGET_FILE_DIR:lsfg-vk-afmf>
-        COMMENT "Copying FidelityFX VK DLL to output directory"
+# Build minimal FidelityFX components when SDK is available
+if(FFX_SDK_AVAILABLE)
+    # Create a minimal FidelityFX library with just what we need
+    set(FFX_SOURCES
+        # Core FidelityFX files
+        "${FFX_SDK_PATH}/sdk/src/shared/ffx_assert.cpp"
+        "${FFX_SDK_PATH}/sdk/src/shared/ffx_object_management.cpp"
+        
+        # Frame interpolation component
+        "${FFX_SDK_PATH}/sdk/src/components/frameinterpolation/ffx_frameinterpolation.cpp"
+        
+        # Optical flow component (needed for frame interpolation)
+        "${FFX_SDK_PATH}/sdk/src/components/opticalflow/ffx_opticalflow.cpp"
+        
+        # Vulkan backend
+        "${FFX_SDK_PATH}/sdk/src/backends/vk/ffx_vk.cpp"
     )
+    
+    # Create static library for FidelityFX components
+    add_library(ffx_minimal STATIC ${FFX_SOURCES})
+    
+    # Set up include directories for FidelityFX
+    target_include_directories(ffx_minimal
+        PUBLIC 
+            "${FFX_SDK_PATH}/sdk/include"
+        PRIVATE
+            "${FFX_SDK_PATH}/sdk/src/backends/vk"
+            "${FFX_SDK_PATH}/sdk/src/shared"
+    )
+    
+    # Link Vulkan to the FidelityFX library
+    target_link_libraries(ffx_minimal PUBLIC vulkan)
+    
+    # Set compile definitions for FidelityFX
+    target_compile_definitions(ffx_minimal PRIVATE
+        FFX_VK=1
+        FFX_GPU_COMPONENT_FRAMEINTERPOLATION=1
+        FFX_GPU_COMPONENT_OPTICALFLOW=1
+    )
+    
+    # Link our minimal FidelityFX library to the main target
+    target_link_libraries(lsfg-vk-afmf PRIVATE ffx_minimal)
+    
+    message(STATUS "FidelityFX minimal components library created")
 endif()
 
 # Add FidelityFX compile definitions when available
