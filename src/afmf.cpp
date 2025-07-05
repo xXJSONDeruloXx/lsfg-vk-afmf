@@ -1,9 +1,9 @@
 #include <afmf.hpp>
 #include "log.hpp"
 
-// TODO: Enable once FidelityFX SDK is properly integrated
-// #include <FidelityFX/host/ffx_frameinterpolation.h>
-// #include <FidelityFX/host/backends/vk/ffx_vk.h>
+// FidelityFX includes  
+#include <ffx/host/ffx_frameinterpolation.h>
+#include <ffx/host/backends/vk/ffx_vk.h>
 
 #include <unordered_map>
 #include <memory>
@@ -13,8 +13,7 @@ namespace AFMF {
 namespace {
 
 struct AFMFContext {
-    // TODO: Enable once FidelityFX SDK is integrated
-    // FfxFrameInterpolationContext context;
+    FfxFrameInterpolationContext ffxContext;
     uint32_t width, height;
     std::vector<int> outputDescriptors;
     int input0, input1;
@@ -23,6 +22,8 @@ struct AFMFContext {
 std::unordered_map<int32_t, std::unique_ptr<AFMFContext>> contexts;
 int32_t nextContextId = 1;
 bool initialized = false;
+FfxInterface backendInterface = {};
+std::vector<uint8_t> scratchBuffer;
 
 } // anonymous namespace
 
@@ -40,11 +41,30 @@ void initialize() {
     
     Log::info("Initializing AFMF (AMD FidelityFX Motion Frames)");
     
-    // TODO: Initialize FidelityFX backend
-    // This will need to be implemented once we have the FidelityFX SDK integration
+    // Initialize FidelityFX Vulkan backend
+    // For now, we'll use a minimal setup - in a real implementation we'd need
+    // actual Vulkan device and physical device from the application
+    
+    // Allocate scratch buffer
+    size_t scratchSize = ffxGetScratchMemorySizeVK(nullptr, 1); // TODO: Get real physical device
+    scratchBuffer.resize(scratchSize);
+    
+    // Initialize the Vulkan backend interface
+    FfxErrorCode result = ffxGetInterfaceVK(
+        &backendInterface,
+        nullptr, // TODO: Get real device
+        scratchBuffer.data(),
+        scratchBuffer.size(),
+        1 // max contexts
+    );
+    
+    if (result != FFX_OK) {
+        Log::error("Failed to initialize FidelityFX Vulkan backend: {}", static_cast<int>(result));
+        return;
+    }
     
     initialized = true;
-    Log::info("AFMF initialized successfully");
+    Log::info("AFMF initialized successfully with FidelityFX backend");
 }
 
 int32_t createContext(uint32_t width, uint32_t height, int in0, int in1, 
