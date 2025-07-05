@@ -37,14 +37,18 @@ jobs:
         mkdir -p build
         cd build
     
-    - name: Configure CMake
+    - name: Configure CMake (Stub Build)
       run: |
         cd build
+        echo "Configuring with stub implementations..."
         cmake .. \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
           -DCMAKE_CXX_COMPILER=clang++ \
-          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_C_COMPILER=clang \
+          -DFFX_ENABLE_DOWNLOAD=OFF
+        
+        echo "CMake configuration completed"
     
     - name: Build
       run: |
@@ -77,3 +81,64 @@ jobs:
           build/CMakeFiles/CMakeError.log
           build/**/*.log
         retention-days: 3
+
+  # Optional job to test FidelityFX SDK integration
+  build-with-fidelityfx:
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[test-ffx]')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          clang \
+          clang-tidy \
+          libvulkan-dev \
+          vulkan-tools \
+          vulkan-validationlayers-dev \
+          pkg-config \
+          git
+    
+    - name: Setup Build Directory
+      run: |
+        mkdir -p build-ffx
+        cd build-ffx
+    
+    - name: Configure CMake (with FidelityFX SDK)
+      timeout-minutes: 20
+      run: |
+        cd build-ffx
+        echo "Configuring with FidelityFX SDK download..."
+        cmake .. \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_C_COMPILER=clang \
+          -DFFX_ENABLE_DOWNLOAD=ON
+        
+        echo "CMake configuration with FidelityFX SDK completed"
+    
+    - name: Build with FidelityFX SDK
+      timeout-minutes: 30
+      run: |
+        cd build-ffx
+        ninja -v
+    
+    - name: Upload FidelityFX build artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: lsfg-vk-afmf-fidelityfx-linux-x86_64
+        path: |
+          build-ffx/liblsfg-vk-afmf.so
+          build-ffx/compile_commands.json
+        retention-days: 7
