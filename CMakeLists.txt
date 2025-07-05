@@ -17,14 +17,22 @@ set(FFX_SDK_PATH "${CMAKE_SOURCE_DIR}/external/FidelityFX-SDK")
 if(EXISTS "${FFX_SDK_PATH}/sdk/CMakeLists.txt")
     message(STATUS "FidelityFX SDK found at: ${FFX_SDK_PATH}")
     
-    # Configure FidelityFX SDK build options
-    set(FFX_API_BACKEND "VK_X64" CACHE STRING "FidelityFX API Backend")
-    set(FFX_BUILD_AS_DLL OFF CACHE BOOL "Build FidelityFX as static library")
-    
-    # Add FidelityFX SDK as subdirectory
-    add_subdirectory(${FFX_SDK_PATH}/sdk ${CMAKE_BINARY_DIR}/ffx-sdk)
-    set(FFX_SDK_AVAILABLE TRUE)
-    message(STATUS "FidelityFX SDK integrated successfully")
+    # FidelityFX SDK has compatibility issues with Ninja generator due to platform specification
+    # For now, we'll build with stubs when using Ninja, and work toward a proper fix
+    if(CMAKE_GENERATOR STREQUAL "Ninja")
+        message(WARNING "FidelityFX SDK has known issues with Ninja generator - building with stubs for now")
+        message(STATUS "To use FidelityFX SDK, consider using a different generator like 'Unix Makefiles'")
+        set(FFX_SDK_AVAILABLE FALSE)
+    else()
+        # Configure FidelityFX SDK build options for non-Ninja generators
+        set(FFX_API_BACKEND "VK_X64" CACHE STRING "FidelityFX API Backend")
+        set(FFX_BUILD_AS_DLL OFF CACHE BOOL "Build FidelityFX as static library")
+        
+        # Add FidelityFX SDK as subdirectory
+        add_subdirectory(${FFX_SDK_PATH}/sdk ${CMAKE_BINARY_DIR}/ffx-sdk)
+        set(FFX_SDK_AVAILABLE TRUE)
+        message(STATUS "FidelityFX SDK integrated successfully")
+    endif()
 else()
     set(FFX_SDK_AVAILABLE FALSE)
     message(FATAL_ERROR "FidelityFX SDK submodule not found at ${FFX_SDK_PATH}. Run: git submodule update --init --recursive")
