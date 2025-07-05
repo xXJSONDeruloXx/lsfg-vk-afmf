@@ -11,59 +11,23 @@ set(CMAKE_SKIP_RPATH ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # FidelityFX SDK Integration
-set(FFX_SDK_PATH "${CMAKE_SOURCE_DIR}/../FidelityFX-SDK")
+set(FFX_SDK_PATH "${CMAKE_SOURCE_DIR}/external/FidelityFX-SDK")
 
-# For now, we'll focus on building the foundation
-# FidelityFX SDK integration can be enabled by setting FFX_ENABLE_DOWNLOAD=ON
-option(FFX_ENABLE_DOWNLOAD "Download and integrate FidelityFX SDK" OFF)
-
-# Check if FidelityFX SDK is available locally first (for development)
+# Check if FidelityFX SDK submodule is available
 if(EXISTS "${FFX_SDK_PATH}/sdk/CMakeLists.txt")
-    message(STATUS "Using local FidelityFX SDK at ${FFX_SDK_PATH}")
-    set(FFX_SDK_SOURCE_DIR "${FFX_SDK_PATH}")
-    set(FFX_SDK_AVAILABLE TRUE)
-elseif(FFX_ENABLE_DOWNLOAD)
-    # Download FidelityFX SDK if requested
-    message(STATUS "FFX_ENABLE_DOWNLOAD is ON - attempting to download FidelityFX SDK...")
+    message(STATUS "FidelityFX SDK found at: ${FFX_SDK_PATH}")
     
-    include(FetchContent)
-    set(FFX_SDK_VERSION "v1.1.4")
-    set(FFX_SDK_URL "https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/archive/refs/tags/${FFX_SDK_VERSION}.zip")
-    
-    FetchContent_Declare(
-        FidelityFX-SDK
-        URL ${FFX_SDK_URL}
-        SOURCE_DIR ${CMAKE_BINARY_DIR}/FidelityFX-SDK-${FFX_SDK_VERSION}
-        TIMEOUT 900  # 15 minutes timeout
-    )
-    
-    FetchContent_MakeAvailable(FidelityFX-SDK)
-    FetchContent_GetProperties(FidelityFX-SDK SOURCE_DIR FFX_SDK_SOURCE_DIR)
-    
-    if(EXISTS "${FFX_SDK_SOURCE_DIR}/sdk/CMakeLists.txt")
-        set(FFX_SDK_AVAILABLE TRUE)
-        message(STATUS "FidelityFX SDK downloaded and available")
-    else()
-        set(FFX_SDK_AVAILABLE FALSE)
-        message(WARNING "FidelityFX SDK download failed")
-    endif()
-else()
-    set(FFX_SDK_AVAILABLE FALSE)
-    message(STATUS "FidelityFX SDK not available (use -DFFX_ENABLE_DOWNLOAD=ON to download)")
-endif()
-
-# Configure FidelityFX SDK if available
-if(FFX_SDK_AVAILABLE)
-    message(STATUS "Configuring FidelityFX SDK integration...")
-    
+    # Configure FidelityFX SDK build options
     set(FFX_API_BACKEND "VK_X64" CACHE STRING "FidelityFX API Backend")
-    set(FFX_BUILD_AS_DLL OFF CACHE BOOL "Build FidelityFX as DLL")
+    set(FFX_BUILD_AS_DLL OFF CACHE BOOL "Build FidelityFX as static library")
     
     # Add FidelityFX SDK as subdirectory
-    add_subdirectory(${FFX_SDK_SOURCE_DIR}/sdk ${CMAKE_BINARY_DIR}/ffx-sdk)
+    add_subdirectory(${FFX_SDK_PATH}/sdk ${CMAKE_BINARY_DIR}/ffx-sdk)
+    set(FFX_SDK_AVAILABLE TRUE)
     message(STATUS "FidelityFX SDK integrated successfully")
 else()
-    message(STATUS "Building with AFMF stub implementations (FidelityFX SDK not available)")
+    set(FFX_SDK_AVAILABLE FALSE)
+    message(FATAL_ERROR "FidelityFX SDK submodule not found at ${FFX_SDK_PATH}. Run: git submodule update --init --recursive")
 endif()
 
 # main project
@@ -83,7 +47,7 @@ add_library(lsfg-vk-afmf SHARED ${SOURCES})
 target_include_directories(lsfg-vk-afmf
     PRIVATE include
     # FidelityFX SDK include paths
-    $<$<BOOL:${FFX_SDK_AVAILABLE}>:PRIVATE ${FFX_SDK_SOURCE_DIR}/sdk/include>
+    $<$<BOOL:${FFX_SDK_AVAILABLE}>:PRIVATE ${FFX_SDK_PATH}/sdk/include>
     )
 
 target_link_libraries(lsfg-vk-afmf
